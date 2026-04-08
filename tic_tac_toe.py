@@ -5,7 +5,6 @@ Easy:   Random moves with basic heuristics (blocks obvious wins ~50% of the time
 Medium: Minimax with depth-limited search (depth 3) + heuristic evaluation
 Hard:   Full Minimax with Alpha-Beta pruning (unbeatable)
 
-Player = X (goes first), AI = O
 """
 
 import sys
