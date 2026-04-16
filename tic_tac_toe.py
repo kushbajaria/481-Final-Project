@@ -1,445 +1,545 @@
-"""
-Tic Tac Toe with Pygame — 3 AI Difficulty Levels
-
-Easy:   Random moves with basic heuristics (blocks obvious wins ~50% of the time)
-Medium: Minimax with depth-limited search (depth 3) + heuristic evaluation
-Hard:   Full Minimax with Alpha-Beta pruning (unbeatable)
-
-"""
-
-import sys
-import random
-import math
 import pygame
+import sys
+import math
+import time
+import copy
 
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-WIDTH, HEIGHT = 600, 700  # extra 100px at top for status bar
-BOARD_SIZE = 600
-CELL = BOARD_SIZE // 3
-LINE_W = 12
-CIRCLE_R = CELL // 3
-CIRCLE_W = 12
-CROSS_W = 16
-CROSS_PAD = CELL // 5
-TOP_OFFSET = 100  # status bar height
+pygame.init()
 
-# Colours
-BG_COLOR      = (28, 28, 30)
-LINE_COLOR    = (60, 60, 67)
-CIRCLE_COLOR  = (10, 132, 255)   # blue
-CROSS_COLOR   = (255, 69, 58)    # red
-TEXT_COLOR     = (235, 235, 245)
-BTN_COLOR     = (44, 44, 46)
-BTN_HOVER     = (58, 58, 60)
-WIN_LINE_COLOR= (48, 209, 88)    # green
+# ─── CONSTANTS ───────────────────────────────────────────────────────────────
+WIDTH, HEIGHT = 600, 700
+BOARD_TOP    = 120
+CELL         = 160
+LINE_W       = 5
+CIRCLE_R     = 55
+CIRCLE_W     = 12
+CROSS_W      = 15
+CROSS_OFF    = 40
 
-# Board state tokens
-EMPTY, PLAYER_X, PLAYER_O = 0, 1, 2
+BG           = (15,  15,  20)
+GRID_COL     = (50,  50,  65)
+X_COL        = (255, 100,  80)
+O_COL        = ( 80, 180, 255)
+BTN_MAIN     = (30,  30,  45)
+BTN_HOVER    = (50,  50,  75)
+BTN_BORDER   = (80,  80, 110)
+EASY_COL     = ( 80, 200, 120)
+HARD_COL     = (255, 100,  80)
+AIVA_COL     = (180, 130, 255)
+WHITE        = (240, 240, 245)
+GRAY         = (120, 120, 140)
+OVERLAY      = (10,  10,  15, 200)
+RESULT_BG    = (20,  20,  30)
 
-# ---------------------------------------------------------------------------
-# Game logic helpers
-# ---------------------------------------------------------------------------
+TITLE_FONT   = pygame.font.SysFont("Georgia",        52, bold=True)
+LABEL_FONT   = pygame.font.SysFont("Courier New",    20, bold=True)
+BTN_FONT     = pygame.font.SysFont("Courier New",    18, bold=True)
+STATUS_FONT  = pygame.font.SysFont("Georgia",        26, bold=True)
+SMALL_FONT   = pygame.font.SysFont("Courier New",    14)
+TIMER_FONT   = pygame.font.SysFont("Courier New",    16, bold=True)
 
-def initial_board():
-    return [[EMPTY] * 3 for _ in range(3)]
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Tic Tac Toe  —  AI")
+clock  = pygame.time.Clock()
 
+# ─── GAME STATE REPRESENTATION ────────────────────────────────────────────────
+# Board is a list of 9 cells: 'X', 'O', or None
+WINS = [
+    (0,1,2),(3,4,5),(6,7,8),   # rows
+    (0,3,6),(1,4,7),(2,5,8),   # columns
+    (0,4,8),(2,4,6)            # diagonals
+]
 
-def available_moves(board):
-    return [(r, c) for r in range(3) for c in range(3) if board[r][c] == EMPTY]
-
+def empty_board():
+    return [None]*9
 
 def check_winner(board):
-    """Return (winner, winning_cells) or (None, None)."""
-    lines = []
-    for r in range(3):
-        lines.append([(r, 0), (r, 1), (r, 2)])
-    for c in range(3):
-        lines.append([(0, c), (1, c), (2, c)])
-    lines.append([(0, 0), (1, 1), (2, 2)])
-    lines.append([(0, 2), (1, 1), (2, 0)])
+    """Return 'X', 'O', or None."""
+    for a,b,c in WINS:
+        if board[a] and board[a]==board[b]==board[c]:
+            return board[a]
+    return None
 
-    for cells in lines:
-        vals = [board[r][c] for r, c in cells]
-        if vals[0] != EMPTY and vals[0] == vals[1] == vals[2]:
-            return vals[0], cells
-    return None, None
+def is_draw(board):
+    return None not in board and check_winner(board) is None
 
+def available(board):
+    return [i for i,v in enumerate(board) if v is None]
 
-def is_full(board):
-    return all(board[r][c] != EMPTY for r in range(3) for c in range(3))
+# ─── HEURISTIC EVALUATION (Easy Mode) ────────────────────────────────────────
+# Priority: win > center > corner > edge
+def heuristic_move(board, ai_mark, human_mark):
+    moves = available(board)
 
+    # 1) Win immediately
+    for m in moves:
+        b = board[:]
+        b[m] = ai_mark
+        if check_winner(b) == ai_mark:
+            return m
+    
+    # 2) Prefer center
+    if 4 in moves:
+        return 4
 
-# ---------------------------------------------------------------------------
-# AI: Easy — random with occasional block
-# ---------------------------------------------------------------------------
+    # 3) Prefer corners
+    for c in [0,2,6,8]:
+        if c in moves:
+            return c
 
-def ai_easy(board):
-    """Mostly random. 50 % chance to block an immediate player win."""
-    moves = available_moves(board)
-    if not moves:
-        return None
+    # 4) Prefer edges
+    for e in [1,3,5,7]:
+        if e in moves:
+            return e
 
-    # 50 % chance: try to block player winning move
-    if random.random() < 0.5:
-        for r, c in moves:
-            board[r][c] = PLAYER_X
-            w, _ = check_winner(board)
-            board[r][c] = EMPTY
-            if w == PLAYER_X:
-                return (r, c)
+    return moves[0]
 
-    return random.choice(moves)
+# ─── MINIMAX ALGORITHM (Hard Mode) ───────────────────────────────────────────
+def minimax(board, is_maximizing, ai_mark, human_mark):
+    winner = check_winner(board)
+    if winner == ai_mark:    return  1
+    if winner == human_mark: return -1
+    if is_draw(board):       return  0
 
-
-# ---------------------------------------------------------------------------
-# AI: Medium — depth-limited minimax with heuristic evaluation
-# ---------------------------------------------------------------------------
-
-def heuristic_eval(board):
-    """Score the board from O's perspective using a simple heuristic."""
-    score = 0
-    lines = []
-    for r in range(3):
-        lines.append([board[r][0], board[r][1], board[r][2]])
-    for c in range(3):
-        lines.append([board[0][c], board[1][c], board[2][c]])
-    lines.append([board[0][0], board[1][1], board[2][2]])
-    lines.append([board[0][2], board[1][1], board[2][0]])
-
-    for line in lines:
-        o_count = line.count(PLAYER_O)
-        x_count = line.count(PLAYER_X)
-        if o_count > 0 and x_count == 0:
-            score += 10 ** o_count
-        elif x_count > 0 and o_count == 0:
-            score -= 10 ** x_count
-    return score
-
-
-def minimax_limited(board, depth, is_maximizing, max_depth):
-    """Minimax with depth limit and heuristic fallback."""
-    winner, _ = check_winner(board)
-    if winner == PLAYER_O:
-        return 1000
-    if winner == PLAYER_X:
-        return -1000
-    if is_full(board):
-        return 0
-    if depth >= max_depth:
-        return heuristic_eval(board)
-
-    moves = available_moves(board)
     if is_maximizing:
         best = -math.inf
-        for r, c in moves:
-            board[r][c] = PLAYER_O
-            best = max(best, minimax_limited(board, depth + 1, False, max_depth))
-            board[r][c] = EMPTY
+        for m in available(board):
+            b = board[:]
+            b[m] = ai_mark
+            best = max(best, minimax(b, False, ai_mark, human_mark))
         return best
     else:
         best = math.inf
-        for r, c in moves:
-            board[r][c] = PLAYER_X
-            best = min(best, minimax_limited(board, depth + 1, True, max_depth))
-            board[r][c] = EMPTY
+        for m in available(board):
+            b = board[:]
+            b[m] = human_mark
+            best = min(best, minimax(b, True, ai_mark, human_mark))
         return best
 
+def best_move_minimax(board, ai_mark, human_mark):
+    best_val, best_m = -math.inf, None
+    for m in available(board):
+        b = board[:]
+        b[m] = ai_mark
+        val = minimax(b, False, ai_mark, human_mark)
+        if val > best_val:
+            best_val, best_m = val, m
+    return best_m
 
-def ai_medium(board):
-    """Depth-limited minimax (depth 3) — makes decent moves but beatable."""
-    moves = available_moves(board)
-    if not moves:
-        return None
-    best_score = -math.inf
-    best_move = moves[0]
-    random.shuffle(moves)  # tie-break randomly
-    for r, c in moves:
-        board[r][c] = PLAYER_O
-        score = minimax_limited(board, 0, False, 3)
-        board[r][c] = EMPTY
-        if score > best_score:
-            best_score = score
-            best_move = (r, c)
-    return best_move
-
-
-# ---------------------------------------------------------------------------
-# AI: Hard — full minimax with alpha-beta pruning (unbeatable)
-# ---------------------------------------------------------------------------
-
-def minimax_ab(board, is_maximizing, alpha, beta):
-    """Full-depth minimax with alpha-beta pruning."""
-    winner, _ = check_winner(board)
-    if winner == PLAYER_O:
-        return 10
-    if winner == PLAYER_X:
-        return -10
-    if is_full(board):
-        return 0
+# ─── ALPHA-BETA PRUNING (Hard Mode Optimized) ────────────────────────────────
+def minimax_ab(board, is_maximizing, ai_mark, human_mark, alpha, beta):
+    winner = check_winner(board)
+    if winner == ai_mark:    return  1
+    if winner == human_mark: return -1
+    if is_draw(board):       return  0
 
     if is_maximizing:
         best = -math.inf
-        for r, c in available_moves(board):
-            board[r][c] = PLAYER_O
-            best = max(best, minimax_ab(board, False, alpha, beta))
-            board[r][c] = EMPTY
+        for m in available(board):
+            b = board[:]
+            b[m] = ai_mark
+            best = max(best, minimax_ab(b, False, ai_mark, human_mark, alpha, beta))
             alpha = max(alpha, best)
-            if beta <= alpha:
+            if beta <= alpha:           # Prune
                 break
         return best
     else:
         best = math.inf
-        for r, c in available_moves(board):
-            board[r][c] = PLAYER_X
-            best = min(best, minimax_ab(board, True, alpha, beta))
-            board[r][c] = EMPTY
+        for m in available(board):
+            b = board[:]
+            b[m] = human_mark
+            best = min(best, minimax_ab(b, True, ai_mark, human_mark, alpha, beta))
             beta = min(beta, best)
-            if beta <= alpha:
+            if beta <= alpha:           # Prune
                 break
         return best
 
+def best_move_ab(board, ai_mark, human_mark):
+    best_val, best_m = -math.inf, None
+    for m in available(board):
+        b = board[:]
+        b[m] = ai_mark
+        val = minimax_ab(b, False, ai_mark, human_mark, -math.inf, math.inf)
+        if val > best_val:
+            best_val, best_m = val, m
+    return best_m
 
-def ai_hard(board):
-    """Unbeatable AI using full minimax + alpha-beta pruning."""
-    moves = available_moves(board)
-    if not moves:
-        return None
-    best_score = -math.inf
-    best_move = moves[0]
-    for r, c in moves:
-        board[r][c] = PLAYER_O
-        score = minimax_ab(board, False, -math.inf, math.inf)
-        board[r][c] = EMPTY
-        if score > best_score:
-            best_score = score
-            best_move = (r, c)
-    return best_move
+# ─── DRAWING HELPERS ──────────────────────────────────────────────────────────
+def draw_rounded_rect(surf, color, rect, r=12, border_color=None, border_w=2):
+    pygame.draw.rect(surf, color, rect, border_radius=r)
+    if border_color:
+        pygame.draw.rect(surf, border_color, rect, border_w, border_radius=r)
 
+def draw_button(surf, text, rect, hover=False, color=None, text_col=WHITE):
+    bg = color if color else (BTN_HOVER if hover else BTN_MAIN)
+    draw_rounded_rect(surf, bg, rect, r=10, border_color=BTN_BORDER)
+    lbl = BTN_FONT.render(text, True, text_col)
+    surf.blit(lbl, (rect[0]+(rect[2]-lbl.get_width())//2,
+                    rect[1]+(rect[3]-lbl.get_height())//2))
 
-AI_FUNCS = {
-    "Easy": ai_easy,
-    "Medium": ai_medium,
-    "Hard": ai_hard,
-}
+def draw_grid():
+    ox, oy = 60, BOARD_TOP
+    for i in range(1,3):
+        pygame.draw.line(screen, GRID_COL,
+                         (ox + i*CELL, oy), (ox + i*CELL, oy+3*CELL), LINE_W)
+        pygame.draw.line(screen, GRID_COL,
+                         (ox, oy + i*CELL), (ox+3*CELL, oy + i*CELL), LINE_W)
 
-# ---------------------------------------------------------------------------
-# Drawing helpers
-# ---------------------------------------------------------------------------
+def cell_center(idx):
+    ox, oy = 60, BOARD_TOP
+    r, c = divmod(idx, 3)
+    return ox + c*CELL + CELL//2, oy + r*CELL + CELL//2
 
-def draw_board(screen):
-    for i in range(1, 3):
-        # Vertical
-        pygame.draw.line(screen, LINE_COLOR,
-                         (i * CELL, TOP_OFFSET), (i * CELL, TOP_OFFSET + BOARD_SIZE), LINE_W)
-        # Horizontal
-        pygame.draw.line(screen, LINE_COLOR,
-                         (0, TOP_OFFSET + i * CELL), (WIDTH, TOP_OFFSET + i * CELL), LINE_W)
+def draw_mark(mark, idx, alpha=255):
+    cx, cy = cell_center(idx)
+    surf = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
+    if mark == 'O':
+        pygame.draw.circle(surf, (*O_COL, alpha), (CELL//2, CELL//2), CIRCLE_R, CIRCLE_W)
+    else:
+        off = CROSS_OFF
+        pygame.draw.line(surf, (*X_COL, alpha),
+                         (off, off), (CELL-off, CELL-off), CROSS_W)
+        pygame.draw.line(surf, (*X_COL, alpha),
+                         (CELL-off, off), (off, CELL-off), CROSS_W)
+    screen.blit(surf, (cx - CELL//2, cy - CELL//2))
 
+def draw_board(board):
+    draw_grid()
+    for i, v in enumerate(board):
+        if v:
+            draw_mark(v, i)
 
-def draw_pieces(screen, board):
-    for r in range(3):
-        for c in range(3):
-            cx = c * CELL + CELL // 2
-            cy = TOP_OFFSET + r * CELL + CELL // 2
-            if board[r][c] == PLAYER_O:
-                pygame.draw.circle(screen, CIRCLE_COLOR, (cx, cy), CIRCLE_R, CIRCLE_W)
-            elif board[r][c] == PLAYER_X:
-                offset = CELL // 2 - CROSS_PAD
-                pygame.draw.line(screen, CROSS_COLOR,
-                                 (cx - offset, cy - offset), (cx + offset, cy + offset), CROSS_W)
-                pygame.draw.line(screen, CROSS_COLOR,
-                                 (cx + offset, cy - offset), (cx - offset, cy + offset), CROSS_W)
+def winning_cells(board):
+    for a,b,c in WINS:
+        if board[a] and board[a]==board[b]==board[c]:
+            return (a,b,c)
+    return None
 
+def draw_win_line(board):
+    cells = winning_cells(board)
+    if not cells:
+        return
+    p1 = cell_center(cells[0])
+    p2 = cell_center(cells[2])
+    col = X_COL if board[cells[0]] == 'X' else O_COL
+    pygame.draw.line(screen, col, p1, p2, 8)
 
-def draw_winning_line(screen, cells):
-    r1, c1 = cells[0]
-    r2, c2 = cells[2]
-    start = (c1 * CELL + CELL // 2, TOP_OFFSET + r1 * CELL + CELL // 2)
-    end   = (c2 * CELL + CELL // 2, TOP_OFFSET + r2 * CELL + CELL // 2)
-    pygame.draw.line(screen, WIN_LINE_COLOR, start, end, LINE_W + 4)
+def draw_status(text, col=WHITE):
+    lbl = STATUS_FONT.render(text, True, col)
+    screen.blit(lbl, (WIDTH//2 - lbl.get_width()//2, 68))
 
+def draw_title():
+    t = TITLE_FONT.render("TIC  TAC  TOE", True, WHITE)
+    screen.blit(t, (WIDTH//2 - t.get_width()//2, 10))
 
-# ---------------------------------------------------------------------------
-# Button helper
-# ---------------------------------------------------------------------------
+# ─── OVERLAY POPUP (AI vs AI sub-menu) ───────────────────────────────────────
+def draw_popup(hover_idx):
+    # dim background
+    dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    dim.fill(OVERLAY)
+    screen.blit(dim, (0,0))
 
-class Button:
-    def __init__(self, rect, text, font, color=BTN_COLOR, hover=BTN_HOVER):
-        self.rect = pygame.Rect(rect)
-        self.text = text
-        self.font = font
-        self.color = color
-        self.hover = hover
+    # Taller popup to accommodate 5 options
+    pw, ph = 460, 400
+    px, py = (WIDTH-pw)//2, (HEIGHT-ph)//2
+    draw_rounded_rect(screen, RESULT_BG, (px,py,pw,ph), r=18,
+                      border_color=AIVA_COL, border_w=2)
 
-    def draw(self, screen, mouse_pos):
-        c = self.hover if self.rect.collidepoint(mouse_pos) else self.color
-        pygame.draw.rect(screen, c, self.rect, border_radius=10)
-        surf = self.font.render(self.text, True, TEXT_COLOR)
-        screen.blit(surf, surf.get_rect(center=self.rect.center))
+    title = LABEL_FONT.render("AI  VS  AI  —  SELECT  MODE", True, AIVA_COL)
+    screen.blit(title, (px+(pw-title.get_width())//2, py+18))
 
-    def clicked(self, pos):
-        return self.rect.collidepoint(pos)
+    options = [
+        ("EASY  vs  EASY",               EASY_COL),
+        ("HARD  vs  HARD  (Minimax)",    HARD_COL),
+        ("EASY (X)  vs  HARD (O)",       WHITE),
+        ("HARD (X)  vs  EASY (O)",       WHITE),       # ← new
+        ("HARD  vs  HARD  (Alpha-Beta)", HARD_COL),
+    ]
+    rects = []
+    for i,(label,col) in enumerate(options):
+        r = pygame.Rect(px+30, py+70+i*58, pw-60, 44)
+        rects.append(r)
+        hov = (i == hover_idx)
+        draw_button(screen, label, r, hover=hov, text_col=col)
 
+    close = SMALL_FONT.render("click outside to close", True, GRAY)
+    screen.blit(close, (px+(pw-close.get_width())//2, py+ph-24))
+    return rects, (px,py,pw,ph)
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+# ─── AI vs AI SIMULATION ─────────────────────────────────────────────────────
+def run_ai_vs_ai(mode):
+    """
+    mode: 'ee' easy-easy | 'hh_mm' hard-hard minimax |
+          'eh' easy(X)-hard(O) | 'he' hard(X)-easy(O) |
+          'hh_ab' hard-hard alpha-beta
+    """
+    results = {"X":0, "O":0, "Draw":0}
+    total_time = {"X":0.0, "O":0.0}
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Tic Tac Toe — AI Difficulty Levels")
-    clock = pygame.time.Clock()
+    N = 10
 
-    font_large = pygame.font.SysFont("Helvetica", 42, bold=True)
-    font_med   = pygame.font.SysFont("Helvetica", 28)
-    font_small = pygame.font.SysFont("Helvetica", 22)
+    if mode == 'ee':
+        def move_x(b): return heuristic_move(b,'X','O')
+        def move_o(b): return heuristic_move(b,'O','X')
+        label = "EASY vs EASY"
+    elif mode == 'hh_mm':
+        def move_x(b): return best_move_minimax(b,'X','O')
+        def move_o(b): return best_move_minimax(b,'O','X')
+        label = "HARD vs HARD  (Minimax)"
+    elif mode == 'eh':
+        def move_x(b): return heuristic_move(b,'X','O')
+        def move_o(b): return best_move_ab(b,'O','X')
+        label = "EASY (X) vs HARD (O)"
+    elif mode == 'he':                                  # ← new
+        def move_x(b): return best_move_ab(b,'X','O')
+        def move_o(b): return heuristic_move(b,'O','X')
+        label = "HARD (X) vs EASY (O)"
+    else:  # hh_ab
+        def move_x(b): return best_move_ab(b,'X','O')
+        def move_o(b): return best_move_ab(b,'O','X')
+        label = "HARD vs HARD  (Alpha-Beta)"
 
-    # ---- State ----
-    STATE_MENU = 0
-    STATE_PLAY = 1
-    STATE_OVER = 2
-
-    state = STATE_MENU
-    difficulty = "Easy"
-    board = initial_board()
-    turn = PLAYER_X  # player always starts
-    winner = None
-    win_cells = None
-    status_text = ""
-
-    # ---- Menu buttons ----
-    btn_w, btn_h = 160, 50
-    gap = 30
-    total = 3 * btn_w + 2 * gap
-    sx = (WIDTH - total) // 2
-    sy = 350
-
-    btn_easy   = Button((sx, sy, btn_w, btn_h), "Easy", font_med)
-    btn_medium = Button((sx + btn_w + gap, sy, btn_w, btn_h), "Medium", font_med)
-    btn_hard   = Button((sx + 2 * (btn_w + gap), sy, btn_w, btn_h), "Hard", font_med)
-    menu_buttons = [btn_easy, btn_medium, btn_hard]
-
-    # Restart / Menu buttons (game over)
-    btn_restart = Button((WIDTH // 2 - 170, HEIGHT - 65, 160, 45), "Restart", font_med)
-    btn_menu    = Button((WIDTH // 2 + 10, HEIGHT - 65, 160, 45), "Menu", font_med)
-
-    def reset_game(diff):
-        nonlocal board, turn, winner, win_cells, state, difficulty, status_text
-        difficulty = diff
-        board = initial_board()
-        turn = PLAYER_X
-        winner = None
-        win_cells = None
-        state = STATE_PLAY
-        status_text = "Your turn (X)"
-
-    def do_ai_move():
-        nonlocal turn, winner, win_cells, state, status_text
-        move = AI_FUNCS[difficulty](board)
-        if move:
-            board[move[0]][move[1]] = PLAYER_O
-            winner, win_cells = check_winner(board)
-            if winner:
-                status_text = "AI wins!"
-                state = STATE_OVER
-            elif is_full(board):
-                status_text = "Draw!"
-                state = STATE_OVER
+    for _ in range(N):
+        board = empty_board()
+        turn  = 'X'
+        while True:
+            t0 = time.perf_counter()
+            if turn == 'X':
+                m = move_x(board)
             else:
-                turn = PLAYER_X
-                status_text = "Your turn (X)"
+                m = move_o(board)
+            elapsed = time.perf_counter() - t0
+            total_time[turn] += elapsed
+            board[m] = turn
+            w = check_winner(board)
+            if w:
+                results[w] += 1
+                break
+            if is_draw(board):
+                results["Draw"] += 1
+                break
+            turn = 'O' if turn == 'X' else 'X'
 
-    running = True
-    while running:
-        mouse_pos = pygame.mouse.get_pos()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    return label, results, total_time, N
 
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # ---- Menu ----
-                if state == STATE_MENU:
-                    for btn, diff in zip(menu_buttons, ["Easy", "Medium", "Hard"]):
-                        if btn.clicked(event.pos):
-                            reset_game(diff)
+# ─── RESULT SCREEN ────────────────────────────────────────────────────────────
+def show_result_screen(label, results, times, N):
+    waiting = True
+    while waiting:
+        screen.fill(BG)
+        draw_title()
 
-                # ---- Playing ----
-                elif state == STATE_PLAY and turn == PLAYER_X:
-                    x, y = event.pos
-                    if y > TOP_OFFSET:
-                        c = x // CELL
-                        r = (y - TOP_OFFSET) // CELL
-                        if 0 <= r < 3 and 0 <= c < 3 and board[r][c] == EMPTY:
-                            board[r][c] = PLAYER_X
-                            winner, win_cells = check_winner(board)
-                            if winner:
-                                status_text = "You win!"
-                                state = STATE_OVER
-                            elif is_full(board):
-                                status_text = "Draw!"
-                                state = STATE_OVER
-                            else:
-                                turn = PLAYER_O
-                                status_text = "AI thinking..."
+        pw, ph = 500, 360
+        px, py = (WIDTH-pw)//2, (HEIGHT-ph)//2 - 10
+        draw_rounded_rect(screen, RESULT_BG, (px,py,pw,ph), r=18,
+                          border_color=AIVA_COL, border_w=2)
 
-                # ---- Game Over ----
-                elif state == STATE_OVER:
-                    if btn_restart.clicked(event.pos):
-                        reset_game(difficulty)
-                    elif btn_menu.clicked(event.pos):
-                        state = STATE_MENU
+        t = LABEL_FONT.render(label, True, AIVA_COL)
+        screen.blit(t, (px+(pw-t.get_width())//2, py+16))
 
-        # AI move (outside event loop so it happens on next frame)
-        if state == STATE_PLAY and turn == PLAYER_O:
-            do_ai_move()
+        lines = [
+            (f"Games played : {N}",             WHITE),
+            (f"X  wins      : {results['X']}",  X_COL),
+            (f"O  wins      : {results['O']}",  O_COL),
+            (f"Draws        : {results['Draw']}", GRAY),
+        ]
+        if times['X'] > 0 or times['O'] > 0:
+            lines.append((f"X  total time: {times['X']*1000:.1f} ms", X_COL))
+            lines.append((f"O  total time: {times['O']*1000:.1f} ms", O_COL))
 
-        # ---- Draw ----
-        screen.fill(BG_COLOR)
+        for i,(txt,col) in enumerate(lines):
+            lbl = BTN_FONT.render(txt, True, col)
+            screen.blit(lbl, (px+40, py+65+i*38))
 
-        if state == STATE_MENU:
-            # Title
-            title = font_large.render("Tic Tac Toe", True, TEXT_COLOR)
-            screen.blit(title, title.get_rect(center=(WIDTH // 2, 160)))
-            sub = font_med.render("Choose difficulty:", True, TEXT_COLOR)
-            screen.blit(sub, sub.get_rect(center=(WIDTH // 2, 280)))
-
-            # Descriptions
-            descs = [
-                "Random + basic blocking",
-                "Depth-limited minimax",
-                "Full minimax + α-β pruning",
-            ]
-            for i, (btn, desc) in enumerate(zip(menu_buttons, descs)):
-                btn.draw(screen, mouse_pos)
-                d = font_small.render(desc, True, (142, 142, 147))
-                screen.blit(d, d.get_rect(center=(btn.rect.centerx, sy + btn_h + 22)))
-
-        else:
-            # Status bar
-            stat = font_med.render(status_text, True, TEXT_COLOR)
-            screen.blit(stat, stat.get_rect(center=(WIDTH // 2, TOP_OFFSET // 2 - 5)))
-            diff_label = font_small.render(f"Difficulty: {difficulty}", True, (142, 142, 147))
-            screen.blit(diff_label, diff_label.get_rect(center=(WIDTH // 2, TOP_OFFSET // 2 + 25)))
-
-            draw_board(screen)
-            draw_pieces(screen, board)
-
-            if win_cells:
-                draw_winning_line(screen, win_cells)
-
-            if state == STATE_OVER:
-                btn_restart.draw(screen, mouse_pos)
-                btn_menu.draw(screen, mouse_pos)
+        back_r = pygame.Rect(px+(pw-180)//2, py+ph-56, 180, 40)
+        mx,my  = pygame.mouse.get_pos()
+        hov    = back_r.collidepoint(mx,my)
+        draw_button(screen, "BACK  TO  MENU", back_r, hover=hov)
 
         pygame.display.flip()
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                if back_r.collidepoint(ev.pos):
+                    waiting = False
         clock.tick(60)
 
-    pygame.quit()
-    sys.exit()
+# ─── PLAY GAME (User vs AI or AI vs AI animated) ─────────────────────────────
+def play_game(mode_label, player_x_fn, player_o_fn, human_player=None):
+    """
+    human_player: 'X' | 'O' | None  (None = both AI)
+    player_x_fn / player_o_fn: callable(board) -> index
+    """
+    board     = empty_board()
+    turn      = 'X'
+    game_over = False
+    winner    = None
+    ai_delay  = 0       # frames before AI acts (for visual pause)
 
+    while True:
+        mx, my = pygame.mouse.get_pos()
+        screen.fill(BG)
+        draw_title()
+        draw_board(board)
 
+        if not game_over:
+            if turn == human_player:
+                draw_status("YOUR  TURN", WHITE)
+            else:
+                mark_col = X_COL if turn=='X' else O_COL
+                draw_status(f"AI  THINKING  ({turn})...", mark_col)
+        else:
+            if winner:
+                col = X_COL if winner=='X' else O_COL
+                who = "YOU  WIN!" if winner==human_player else (
+                      "AI  WINS!" if human_player else f"{winner}  WINS!")
+                draw_status(who, col)
+                draw_win_line(board)
+            else:
+                draw_status("DRAW!", GRAY)
+
+        back_r = pygame.Rect(20, HEIGHT-54, 130, 38)
+        draw_button(screen, "← MENU", back_r,
+                    hover=back_r.collidepoint(mx,my))
+
+        pygame.display.flip()
+
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                if back_r.collidepoint(ev.pos):
+                    return
+                if not game_over and turn == human_player:
+                    ox, oy = 60, BOARD_TOP
+                    gx, gy = ev.pos[0]-ox, ev.pos[1]-oy
+                    if 0<=gx<3*CELL and 0<=gy<3*CELL:
+                        col_i, row_i = gx//CELL, gy//CELL
+                        idx = row_i*3 + col_i
+                        if board[idx] is None:
+                            board[idx] = turn
+                            w = check_winner(board)
+                            if w or is_draw(board):
+                                winner = w
+                                game_over = True
+                            else:
+                                turn = 'O' if turn=='X' else 'X'
+                                ai_delay = 30
+            if ev.type == pygame.KEYDOWN and game_over:
+                if ev.key == pygame.K_r:
+                    return play_game(mode_label, player_x_fn, player_o_fn, human_player)
+
+        if not game_over and turn != human_player:
+            ai_delay -= 1
+            if ai_delay <= 0:
+                fn = player_x_fn if turn=='X' else player_o_fn
+                m  = fn(board)
+                board[m] = turn
+                w = check_winner(board)
+                if w or is_draw(board):
+                    winner = w
+                    game_over = True
+                else:
+                    turn = 'O' if turn=='X' else 'X'
+                    ai_delay = 30 if human_player else 45
+
+        clock.tick(60)
+
+# ─── MAIN MENU ────────────────────────────────────────────────────────────────
+def main_menu():
+    popup_open = False
+    popup_hover = -1
+
+    while True:
+        mx, my = pygame.mouse.get_pos()
+        screen.fill(BG)
+
+        for x in range(0, WIDTH, 60):
+            pygame.draw.line(screen, (25,25,35), (x,0), (x,HEIGHT))
+        for y in range(0, HEIGHT, 60):
+            pygame.draw.line(screen, (25,25,35), (0,y), (WIDTH,y))
+
+        draw_title()
+        sub = SMALL_FONT.render("by  Kush Bajaria  &  AP Calderon", True, GRAY)
+        screen.blit(sub, (WIDTH//2 - sub.get_width()//2, 68))
+
+        easy_r  = pygame.Rect(100, 200, 400, 56)
+        hard_r  = pygame.Rect(100, 276, 400, 56)
+        aivai_r = pygame.Rect(100, 380, 400, 56)
+
+        draw_button(screen, "EASY  MODE  (User vs AI)",
+                    easy_r,  hover=easy_r.collidepoint(mx,my),
+                    text_col=EASY_COL)
+        draw_button(screen, "HARD  MODE  (User vs AI)",
+                    hard_r,  hover=hard_r.collidepoint(mx,my),
+                    text_col=HARD_COL)
+        draw_button(screen, "AI  VS  AI",
+                    aivai_r, hover=aivai_r.collidepoint(mx,my),
+                    text_col=AIVA_COL)
+
+        legend_y = 460
+        for i,(txt,col) in enumerate([
+            ("EASY : Heuristic evaluation  (win / block / center / corner / edge)", EASY_COL),
+            ("HARD : Minimax  +  Alpha-Beta Pruning — unbeatable",                  HARD_COL),
+            ("AI vs AI : simulation with timing stats",                             AIVA_COL),
+        ]):
+            lbl = SMALL_FONT.render(txt, True, col)
+            screen.blit(lbl, (WIDTH//2 - lbl.get_width()//2, legend_y + i*22))
+
+        popup_rects = None
+        popup_area  = None
+        if popup_open:
+            popup_rects, popup_area = draw_popup(popup_hover)
+            popup_hover = -1
+            for i,r in enumerate(popup_rects):
+                if r.collidepoint(mx,my):
+                    popup_hover = i
+
+        pygame.display.flip()
+
+        for ev in pygame.event.get():
+            if ev.type == pygame.QUIT:
+                pygame.quit(); sys.exit()
+
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                if popup_open:
+                    px,py,pw,ph = popup_area
+                    if not pygame.Rect(px,py,pw,ph).collidepoint(ev.pos):
+                        popup_open = False
+                    else:
+                        for i,r in enumerate(popup_rects):
+                            if r.collidepoint(ev.pos):
+                                popup_open = False
+                                # Maps button index → mode key (5 options now)
+                                modes = ['ee', 'hh_mm', 'eh', 'he', 'hh_ab']
+                                screen.fill(BG)
+                                loading = LABEL_FONT.render("RUNNING SIMULATION...", True, AIVA_COL)
+                                screen.blit(loading, (WIDTH//2-loading.get_width()//2, HEIGHT//2))
+                                pygame.display.flip()
+                                label, res, times, N = run_ai_vs_ai(modes[i])
+                                show_result_screen(label, res, times, N)
+                else:
+                    if easy_r.collidepoint(ev.pos):
+                        play_game(
+                            "Easy",
+                            lambda b: None,
+                            lambda b: heuristic_move(b,'O','X'),
+                            human_player='X'
+                        )
+                    elif hard_r.collidepoint(ev.pos):
+                        play_game(
+                            "Hard",
+                            lambda b: None,
+                            lambda b: best_move_ab(b,'O','X'),
+                            human_player='X'
+                        )
+                    elif aivai_r.collidepoint(ev.pos):
+                        popup_open = True
+                        popup_hover = -1
+
+        clock.tick(60)
+
+# ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    main()
+    main_menu()
