@@ -2,7 +2,6 @@ import pygame
 import sys
 import math
 import time
-import copy
 
 pygame.init()
 
@@ -16,30 +15,51 @@ CIRCLE_W     = 12
 CROSS_W      = 15
 CROSS_OFF    = 40
 
-BG           = (15,  15,  20)
-GRID_COL     = (50,  50,  65)
-X_COL        = (255, 100,  80)
-O_COL        = ( 80, 180, 255)
-BTN_MAIN     = (30,  30,  45)
-BTN_HOVER    = (50,  50,  75)
-BTN_BORDER   = (80,  80, 110)
-EASY_COL     = ( 80, 200, 120)
-HARD_COL     = (255, 100,  80)
-AIVA_COL     = (180, 130, 255)
-WHITE        = (240, 240, 245)
-GRAY         = (120, 120, 140)
-OVERLAY      = (10,  10,  15, 200)
-RESULT_BG    = (20,  20,  30)
+BG           = (245, 242, 235)   # warm off-white paper
+PANEL        = (255, 253, 248)
+INK          = ( 32,  32,  38)   # near-black ink
+INK_SOFT     = ( 90,  90,  98)
+RULE         = (210, 205, 195)   # hairline rule color
+GRID_COL     = ( 60,  60,  70)
+X_COL        = (200,  60,  55)   # muted vermilion
+O_COL        = ( 30,  90, 160)   # deep ink blue
+ACCENT       = (170, 130,  60)   # antique gold
+BTN_MAIN     = (255, 253, 248)
+BTN_HOVER    = (240, 235, 222)
+BTN_BORDER   = ( 32,  32,  38)
+EASY_COL     = ( 60, 120,  70)
+HARD_COL     = (200,  60,  55)
+AIVA_COL     = ( 90,  60, 140)
+WHITE        = (250, 248, 242)
+GRAY         = (140, 138, 132)
+OVERLAY      = ( 32,  32,  38, 180)
+RESULT_BG    = (255, 253, 248)
 
-TITLE_FONT   = pygame.font.SysFont("Georgia",        52, bold=True)
-LABEL_FONT   = pygame.font.SysFont("Courier New",    20, bold=True)
-BTN_FONT     = pygame.font.SysFont("Courier New",    18, bold=True)
-STATUS_FONT  = pygame.font.SysFont("Georgia",        26, bold=True)
-SMALL_FONT   = pygame.font.SysFont("Courier New",    14)
-TIMER_FONT   = pygame.font.SysFont("Courier New",    16, bold=True)
+# Font stack — try elegant system fonts, fall back gracefully.
+SERIF_STACK  = "PlayfairDisplay,Baskerville,Didot,Georgia,Garamond,serif"
+SANS_STACK   = "HelveticaNeue,Helvetica,Avenir,Inter,Arial,sans-serif"
+MONO_STACK   = "JetBrainsMono,IBMPlexMono,Menlo,Consolas,Courier New,monospace"
+
+TITLE_FONT   = pygame.font.SysFont(SERIF_STACK, 64, bold=False, italic=False)
+SUB_FONT     = pygame.font.SysFont(SERIF_STACK, 18, italic=True)
+LABEL_FONT   = pygame.font.SysFont(SANS_STACK,  16, bold=True)
+BTN_FONT     = pygame.font.SysFont(SANS_STACK,  17, bold=True)
+STATUS_FONT  = pygame.font.SysFont(SERIF_STACK, 28, bold=False)
+SMALL_FONT   = pygame.font.SysFont(SANS_STACK,  13)
+TINY_FONT    = pygame.font.SysFont(SANS_STACK,  11, bold=True)
+TIMER_FONT   = pygame.font.SysFont(MONO_STACK,  16, bold=True)
+
+# Home-screen typography
+HOME_TITLE   = pygame.font.SysFont(SERIF_STACK, 76, italic=False)
+HOME_SUB     = pygame.font.SysFont(SERIF_STACK, 17, italic=True)
+HOME_KICKER  = pygame.font.SysFont(SANS_STACK,  10, bold=True)
+HOME_BTN     = pygame.font.SysFont(SANS_STACK,  15, bold=True)
+HOME_BTN_SUB = pygame.font.SysFont(SERIF_STACK, 13, italic=True)
+HOME_NUM     = pygame.font.SysFont(SERIF_STACK, 26, italic=True)
+HOME_META    = pygame.font.SysFont(SANS_STACK,  11)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Tic Tac Toe  —  AI")
+pygame.display.set_caption("Tic Tac Toe")
 clock  = pygame.time.Clock()
 
 # ─── GAME STATE REPRESENTATION ────────────────────────────────────────────────
@@ -170,10 +190,10 @@ def draw_rounded_rect(surf, color, rect, r=12, border_color=None, border_w=2):
     if border_color:
         pygame.draw.rect(surf, border_color, rect, border_w, border_radius=r)
 
-def draw_button(surf, text, rect, hover=False, color=None, text_col=WHITE):
+def draw_button(surf, text, rect, hover=False, color=None, text_col=None):
     bg = color if color else (BTN_HOVER if hover else BTN_MAIN)
     draw_rounded_rect(surf, bg, rect, r=10, border_color=BTN_BORDER)
-    lbl = BTN_FONT.render(text, True, text_col)
+    lbl = BTN_FONT.render(text, True, text_col if text_col is not None else INK)
     surf.blit(lbl, (rect[0]+(rect[2]-lbl.get_width())//2,
                     rect[1]+(rect[3]-lbl.get_height())//2))
 
@@ -224,13 +244,13 @@ def draw_win_line(board):
     col = X_COL if board[cells[0]] == 'X' else O_COL
     pygame.draw.line(screen, col, p1, p2, 8)
 
-def draw_status(text, col=WHITE):
-    lbl = STATUS_FONT.render(text, True, col)
+def draw_status(text, col=None):
+    lbl = STATUS_FONT.render(text, True, col if col is not None else INK)
     screen.blit(lbl, (WIDTH//2 - lbl.get_width()//2, 68))
 
 def draw_title():
-    t = TITLE_FONT.render("TIC  TAC  TOE", True, WHITE)
-    screen.blit(t, (WIDTH//2 - t.get_width()//2, 10))
+    t = TITLE_FONT.render("Tic-Tac-Toe", True, INK)
+    screen.blit(t, (WIDTH//2 - t.get_width()//2, 5))
 
 # ─── OVERLAY POPUP (AI vs AI sub-menu) ───────────────────────────────────────
 def draw_popup(hover_idx):
@@ -251,8 +271,8 @@ def draw_popup(hover_idx):
     options = [
         ("EASY  vs  EASY",               EASY_COL),
         ("HARD  vs  HARD  (Minimax)",    HARD_COL),
-        ("EASY (X)  vs  HARD (O)",       WHITE),
-        ("HARD (X)  vs  EASY (O)",       WHITE),       # ← new
+        ("EASY (X)  vs  HARD (O)",       INK),
+        ("HARD (X)  vs  EASY (O)",       INK),
         ("HARD  vs  HARD  (Alpha-Beta)", HARD_COL),
     ]
     rects = []
@@ -276,7 +296,7 @@ def run_ai_vs_ai(mode):
     results = {"X":0, "O":0, "Draw":0}
     total_time = {"X":0.0, "O":0.0}
 
-    N = 10
+    N = 100
 
     if mode == 'ee':
         def move_x(b): return heuristic_move(b,'X','O')
@@ -338,7 +358,7 @@ def show_result_screen(label, results, times, N):
         screen.blit(t, (px+(pw-t.get_width())//2, py+16))
 
         lines = [
-            (f"Games played : {N}",             WHITE),
+            (f"Games played : {N}",             INK),
             (f"X  wins      : {results['X']}",  X_COL),
             (f"O  wins      : {results['O']}",  O_COL),
             (f"Draws        : {results['Draw']}", GRAY),
@@ -385,7 +405,7 @@ def play_game(mode_label, player_x_fn, player_o_fn, human_player=None):
 
         if not game_over:
             if turn == human_player:
-                draw_status("YOUR  TURN", WHITE)
+                draw_status("YOUR  TURN", INK)
             else:
                 mark_col = X_COL if turn=='X' else O_COL
                 draw_status(f"AI  THINKING  ({turn})...", mark_col)
@@ -447,6 +467,52 @@ def play_game(mode_label, player_x_fn, player_o_fn, human_player=None):
         clock.tick(60)
 
 # ─── MAIN MENU ────────────────────────────────────────────────────────────────
+def draw_motif(cx, cy, size=64):
+    """Small decorative tic-tac-toe glyph with an X and an O placed inside."""
+    s = size
+    half = s // 2
+    third = s // 3
+    x0, y0 = cx - half, cy - half
+    # grid (hairline)
+    for i in (1, 2):
+        pygame.draw.line(screen, INK_SOFT, (x0 + i*third, y0), (x0 + i*third, y0 + s), 1)
+        pygame.draw.line(screen, INK_SOFT, (x0, y0 + i*third), (x0 + s, y0 + i*third), 1)
+    # X in top-left cell
+    pad = third // 4
+    cell0 = pygame.Rect(x0, y0, third, third)
+    pygame.draw.line(screen, X_COL,
+                     (cell0.left+pad, cell0.top+pad),
+                     (cell0.right-pad, cell0.bottom-pad), 2)
+    pygame.draw.line(screen, X_COL,
+                     (cell0.right-pad, cell0.top+pad),
+                     (cell0.left+pad, cell0.bottom-pad), 2)
+    # O in bottom-right cell
+    cell8 = pygame.Rect(x0 + 2*third, y0 + 2*third, third, third)
+    pygame.draw.circle(screen, O_COL, cell8.center, third//2 - pad, 2)
+
+def draw_card_button(rect, num, title, subtitle, accent, hover):
+    """Paper-card button with a serif numeral, sans title, italic-serif subtitle."""
+    bg = BTN_HOVER if hover else PANEL
+    draw_rounded_rect(screen, bg, rect, r=4, border_color=INK, border_w=1)
+    # Vertical accent bar on the left
+    bar = pygame.Rect(rect.x, rect.y, 4, rect.h)
+    pygame.draw.rect(screen, accent, bar)
+    # Serif numeral
+    n = HOME_NUM.render(num, True, INK_SOFT)
+    screen.blit(n, (rect.x + 22, rect.y + (rect.h - n.get_height())//2 - 1))
+    # Title (sans, tracked)
+    t = HOME_BTN.render(title, True, INK)
+    screen.blit(t, (rect.x + 70, rect.y + 14))
+    # Subtitle (italic serif)
+    s = HOME_BTN_SUB.render(subtitle, True, INK_SOFT)
+    screen.blit(s, (rect.x + 70, rect.y + 14 + t.get_height() + 2))
+    # Right-side caret on hover
+    if hover:
+        cx = rect.right - 22
+        cy = rect.y + rect.h//2
+        pygame.draw.line(screen, INK, (cx-6, cy-5), (cx, cy), 2)
+        pygame.draw.line(screen, INK, (cx-6, cy+5), (cx, cy), 2)
+
 def main_menu():
     popup_open = False
     popup_hover = -1
@@ -455,37 +521,55 @@ def main_menu():
         mx, my = pygame.mouse.get_pos()
         screen.fill(BG)
 
-        for x in range(0, WIDTH, 60):
-            pygame.draw.line(screen, (25,25,35), (x,0), (x,HEIGHT))
-        for y in range(0, HEIGHT, 60):
-            pygame.draw.line(screen, (25,25,35), (0,y), (WIDTH,y))
+        # ── Top kicker (small caps, tracked) ──
+        kicker = "CPSC 481  ·  ARTIFICIAL INTELLIGENCE"
+        k = HOME_KICKER.render(kicker, True, INK_SOFT)
+        screen.blit(k, (WIDTH//2 - k.get_width()//2, 36))
 
-        draw_title()
-        sub = SMALL_FONT.render("by  Kush Bajaria  &  AP Calderon", True, GRAY)
-        screen.blit(sub, (WIDTH//2 - sub.get_width()//2, 68))
+        # Hairline rule under kicker
+        pygame.draw.line(screen, RULE, (60, 58), (WIDTH-60, 58), 1)
 
-        easy_r  = pygame.Rect(100, 200, 400, 56)
-        hard_r  = pygame.Rect(100, 276, 400, 56)
-        aivai_r = pygame.Rect(100, 380, 400, 56)
+        # ── Title (large serif) ──
+        title = HOME_TITLE.render("Tic-Tac-Toe", True, INK)
+        screen.blit(title, (WIDTH//2 - title.get_width()//2, 78))
 
-        draw_button(screen, "EASY  MODE  (User vs AI)",
-                    easy_r,  hover=easy_r.collidepoint(mx,my),
-                    text_col=EASY_COL)
-        draw_button(screen, "HARD  MODE  (User vs AI)",
-                    hard_r,  hover=hard_r.collidepoint(mx,my),
-                    text_col=HARD_COL)
-        draw_button(screen, "AI  VS  AI",
-                    aivai_r, hover=aivai_r.collidepoint(mx,my),
-                    text_col=AIVA_COL)
+        # ── Italic subtitle ──
+        sub_txt = "an adversarial-search project"
+        sub = HOME_SUB.render(sub_txt, True, INK_SOFT)
+        screen.blit(sub, (WIDTH//2 - sub.get_width()//2, 78 + title.get_height() + 2))
 
-        legend_y = 460
-        for i,(txt,col) in enumerate([
-            ("EASY : Heuristic evaluation  (win / block / center / corner / edge)", EASY_COL),
-            ("HARD : Minimax  +  Alpha-Beta Pruning — unbeatable",                  HARD_COL),
-            ("AI vs AI : simulation with timing stats",                             AIVA_COL),
-        ]):
-            lbl = SMALL_FONT.render(txt, True, col)
-            screen.blit(lbl, (WIDTH//2 - lbl.get_width()//2, legend_y + i*22))
+        # Decorative motif under subtitle
+        motif_y = 78 + title.get_height() + sub.get_height() + 32
+        draw_motif(WIDTH//2, motif_y, size=46)
+
+        # Hairline rule above buttons
+        rule_y = motif_y + 44
+        pygame.draw.line(screen, RULE, (60, rule_y), (WIDTH-60, rule_y), 1)
+
+        # ── Three card-style buttons ──
+        btn_w, btn_h = 440, 72
+        btn_x = (WIDTH - btn_w)//2
+        easy_r  = pygame.Rect(btn_x, rule_y + 24,             btn_w, btn_h)
+        hard_r  = pygame.Rect(btn_x, easy_r.bottom + 14,      btn_w, btn_h)
+        aivai_r = pygame.Rect(btn_x, hard_r.bottom + 14,      btn_w, btn_h)
+
+        draw_card_button(easy_r,  "I.",   "EASY MODE",
+                         "you versus a heuristic agent",
+                         EASY_COL, easy_r.collidepoint(mx, my))
+        draw_card_button(hard_r,  "II.",  "HARD MODE",
+                         "you versus minimax with α-β pruning",
+                         HARD_COL, hard_r.collidepoint(mx, my))
+        draw_card_button(aivai_r, "III.", "AGENT VS AGENT",
+                         "simulate matchups & view timing data",
+                         AIVA_COL, aivai_r.collidepoint(mx, my))
+
+        # ── Footer ──
+        foot_y = HEIGHT - 44
+        pygame.draw.line(screen, RULE, (60, foot_y - 14), (WIDTH-60, foot_y - 14), 1)
+        byline = HOME_META.render("Kush Bajaria  ·  AP Calderon", True, INK_SOFT)
+        screen.blit(byline, (60, foot_y))
+        right = HOME_META.render("California State University, Fullerton", True, INK_SOFT)
+        screen.blit(right, (WIDTH - 60 - right.get_width(), foot_y))
 
         popup_rects = None
         popup_area  = None

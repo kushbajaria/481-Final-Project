@@ -36,3 +36,31 @@ htmlcov/
 # OS-specific files
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Environment / secrets
+.env
+.env.*
+*.local
+
+# Logs & runtime output
+*.log
+logs/
+
+# Simulation / experiment output
+results/
+*.csv
+*.tsv
+
+# Pygame / SDL caches
+.sdl_cache/
+
+# Claude / agent tooling
+.claude/
+memory/
+
+# Misc
+*.bak
+*.swp
+*.tmp
+*~
