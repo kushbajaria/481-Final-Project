@@ -5,7 +5,7 @@ import time
 
 pygame.init()
 
-# ─── CONSTANTS ───────────────────────────────────────────────────────────────
+# CONSTANTS
 WIDTH, HEIGHT = 600, 700
 BOARD_TOP    = 120
 CELL         = 160
@@ -35,7 +35,7 @@ GRAY         = (140, 138, 132)
 OVERLAY      = ( 32,  32,  38, 180)
 RESULT_BG    = (255, 253, 248)
 
-# Font stack — try elegant system fonts, fall back gracefully.
+# Font stack — try system fonts, fall back otherwise.
 SERIF_STACK  = "PlayfairDisplay,Baskerville,Didot,Georgia,Garamond,serif"
 SANS_STACK   = "HelveticaNeue,Helvetica,Avenir,Inter,Arial,sans-serif"
 MONO_STACK   = "JetBrainsMono,IBMPlexMono,Menlo,Consolas,Courier New,monospace"
@@ -49,7 +49,7 @@ SMALL_FONT   = pygame.font.SysFont(SANS_STACK,  13)
 TINY_FONT    = pygame.font.SysFont(SANS_STACK,  11, bold=True)
 TIMER_FONT   = pygame.font.SysFont(MONO_STACK,  16, bold=True)
 
-# Home-screen typography
+# Home-screen
 HOME_TITLE   = pygame.font.SysFont(SERIF_STACK, 76, italic=False)
 HOME_SUB     = pygame.font.SysFont(SERIF_STACK, 17, italic=True)
 HOME_KICKER  = pygame.font.SysFont(SANS_STACK,  10, bold=True)
@@ -62,7 +62,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Tic Tac Toe")
 clock  = pygame.time.Clock()
 
-# ─── GAME STATE REPRESENTATION ────────────────────────────────────────────────
+# GAME STATE REPRESENTATION
 # Board is a list of 9 cells: 'X', 'O', or None
 WINS = [
     (0,1,2),(3,4,5),(6,7,8),   # rows
@@ -86,7 +86,7 @@ def is_draw(board):
 def available(board):
     return [i for i,v in enumerate(board) if v is None]
 
-# ─── HEURISTIC EVALUATION (Easy Mode) ────────────────────────────────────────
+# HEURISTIC EVALUATION (Easy Mode)
 # Priority: win > center > corner > edge
 def heuristic_move(board, ai_mark, human_mark):
     moves = available(board)
@@ -114,7 +114,7 @@ def heuristic_move(board, ai_mark, human_mark):
 
     return moves[0]
 
-# ─── MINIMAX ALGORITHM (Hard Mode) ───────────────────────────────────────────
+# MINIMAX ALGORITHM (Hard Mode)
 def minimax(board, is_maximizing, ai_mark, human_mark):
     winner = check_winner(board)
     if winner == ai_mark:    return  1
@@ -146,7 +146,7 @@ def best_move_minimax(board, ai_mark, human_mark):
             best_val, best_m = val, m
     return best_m
 
-# ─── ALPHA-BETA PRUNING (Hard Mode Optimized) ────────────────────────────────
+# ALPHA-BETA PRUNING (Hard Mode Optimized)
 def minimax_ab(board, is_maximizing, ai_mark, human_mark, alpha, beta):
     winner = check_winner(board)
     if winner == ai_mark:    return  1
@@ -184,7 +184,7 @@ def best_move_ab(board, ai_mark, human_mark):
             best_val, best_m = val, m
     return best_m
 
-# ─── DRAWING HELPERS ──────────────────────────────────────────────────────────
+# DRAWING HELPERS
 def draw_rounded_rect(surf, color, rect, r=12, border_color=None, border_w=2):
     pygame.draw.rect(surf, color, rect, border_radius=r)
     if border_color:
@@ -252,7 +252,7 @@ def draw_title():
     t = TITLE_FONT.render("Tic-Tac-Toe", True, INK)
     screen.blit(t, (WIDTH//2 - t.get_width()//2, 5))
 
-# ─── OVERLAY POPUP (AI vs AI sub-menu) ───────────────────────────────────────
+# AI vs AI sub-menu
 def draw_popup(hover_idx):
     # dim background
     dim = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -286,7 +286,7 @@ def draw_popup(hover_idx):
     screen.blit(close, (px+(pw-close.get_width())//2, py+ph-24))
     return rects, (px,py,pw,ph)
 
-# ─── AI vs AI SIMULATION ─────────────────────────────────────────────────────
+# AI vs AI SIMULATION
 def run_ai_vs_ai(mode):
     """
     mode: 'ee' easy-easy | 'hh_mm' hard-hard minimax |
@@ -342,7 +342,7 @@ def run_ai_vs_ai(mode):
 
     return label, results, total_time, N
 
-# ─── RESULT SCREEN ────────────────────────────────────────────────────────────
+# RESULT SCREEN
 def show_result_screen(label, results, times, N):
     waiting = True
     while waiting:
@@ -385,7 +385,7 @@ def show_result_screen(label, results, times, N):
                     waiting = False
         clock.tick(60)
 
-# ─── PLAY GAME (User vs AI or AI vs AI animated) ─────────────────────────────
+# PLAY GAME (User vs AI or AI vs AI animated)
 def play_game(mode_label, player_x_fn, player_o_fn, human_player=None):
     """
     human_player: 'X' | 'O' | None  (None = both AI)
@@ -466,7 +466,7 @@ def play_game(mode_label, player_x_fn, player_o_fn, human_player=None):
 
         clock.tick(60)
 
-# ─── MAIN MENU ────────────────────────────────────────────────────────────────
+# MAIN MENU
 def draw_motif(cx, cy, size=64):
     """Small decorative tic-tac-toe glyph with an X and an O placed inside."""
     s = size
@@ -624,6 +624,6 @@ def main_menu():
 
         clock.tick(60)
 
-# ─── ENTRY POINT ─────────────────────────────────────────────────────────────
+# ENTRY POINT
 if __name__ == "__main__":
     main_menu()
