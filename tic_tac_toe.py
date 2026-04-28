@@ -305,18 +305,18 @@ def run_ai_vs_ai(mode):
         def move_x(b): return heuristic_move(b,'X','O')
         def move_o(b): return heuristic_move(b,'O','X')
         label = "EASY vs EASY"
-    elif mode == 'hh_mm':
-        def move_x(b): return best_move_minimax(b,'X','O')
-        def move_o(b): return best_move_minimax(b,'O','X')
-        label = "HARD vs HARD  (Minimax)"
     elif mode == 'eh':
         def move_x(b): return heuristic_move(b,'X','O')
         def move_o(b): return best_move_ab(b,'O','X')
         label = "EASY (X) vs HARD (O)"
-    elif mode == 'he':                                  # ← new
+    elif mode == 'he':
         def move_x(b): return best_move_ab(b,'X','O')
         def move_o(b): return heuristic_move(b,'O','X')
         label = "HARD (X) vs EASY (O)"
+    elif mode == 'hh_mm':
+        def move_x(b): return best_move_minimax(b,'X','O')
+        def move_o(b): return best_move_minimax(b,'O','X')
+        label = "HARD vs HARD  (Minimax)"
     else:  # hh_ab
         def move_x(b): return best_move_ab(b,'X','O')
         def move_o(b): return best_move_ab(b,'O','X')
@@ -599,7 +599,7 @@ def main_menu():
                             if r.collidepoint(ev.pos):
                                 popup_open = False
                                 # Maps button index → mode key (5 options now)
-                                modes = ['ee', 'hh_mm', 'eh', 'he', 'hh_ab']
+                                modes = ['ee', 'eh', 'he', 'hh_mm', 'hh_ab']
                                 screen.fill(BG)
                                 loading = LABEL_FONT.render("RUNNING SIMULATION...", True, AIVA_COL)
                                 screen.blit(loading, (WIDTH//2-loading.get_width()//2, HEIGHT//2))
