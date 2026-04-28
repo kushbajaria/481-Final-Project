@@ -87,5 +87,5 @@ matchups:
 
 ## Authors
 
-Kush Bajaria | AP Calderon |
+Kush Bajaria · AP Calderon |
 California State University, Fullerton | CPSC 481, 2026
