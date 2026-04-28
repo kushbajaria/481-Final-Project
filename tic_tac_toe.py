@@ -117,9 +117,12 @@ def heuristic_move(board, ai_mark, human_mark):
 # MINIMAX ALGORITHM (Hard Mode)
 def minimax(board, is_maximizing, ai_mark, human_mark):
     winner = check_winner(board)
-    if winner == ai_mark:    return  1
-    if winner == human_mark: return -1
-    if is_draw(board):       return  0
+    if winner == ai_mark:
+        return  1
+    if winner == human_mark:
+        return -1
+    if is_draw(board):
+        return  0
 
     if is_maximizing:
         best = -math.inf
@@ -270,9 +273,9 @@ def draw_popup(hover_idx):
 
     options = [
         ("EASY  vs  EASY",               EASY_COL),
-        ("HARD  vs  HARD  (Minimax)",    HARD_COL),
         ("EASY (X)  vs  HARD (O)",       INK),
         ("HARD (X)  vs  EASY (O)",       INK),
+        ("HARD  vs  HARD  (Minimax)",    HARD_COL),
         ("HARD  vs  HARD  (Alpha-Beta)", HARD_COL),
     ]
     rects = []
@@ -289,8 +292,8 @@ def draw_popup(hover_idx):
 # AI vs AI SIMULATION
 def run_ai_vs_ai(mode):
     """
-    mode: 'ee' easy-easy | 'hh_mm' hard-hard minimax |
-          'eh' easy(X)-hard(O) | 'he' hard(X)-easy(O) |
+    mode: 'ee' easy-easy | 'eh' easy(X)-hard(O) |
+          'he' hard(X)-easy(O) | 'hh_mm' hard-hard minimax |
           'hh_ab' hard-hard alpha-beta
     """
     results = {"X":0, "O":0, "Draw":0}
