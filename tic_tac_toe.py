@@ -234,6 +234,7 @@ def draw_button(surf, text, rect, hover=False, color=None, text_col=None):
     surf.blit(lbl, (rect[0]+(rect[2]-lbl.get_width())//2,
                     rect[1]+(rect[3]-lbl.get_height())//2))
 
+# draw 3 x 3 grid
 def draw_grid():
     ox, oy = 60, BOARD_TOP
     for i in range(1,3):
@@ -247,6 +248,7 @@ def cell_center(idx):
     r, c = divmod(idx, 3)
     return ox + c*CELL + CELL//2, oy + r*CELL + CELL//2
 
+# draw X or O
 def draw_mark(mark, idx, alpha=255):
     cx, cy = cell_center(idx)
     surf = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
