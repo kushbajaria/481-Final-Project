@@ -15,15 +15,15 @@ CIRCLE_W     = 12
 CROSS_W      = 15
 CROSS_OFF    = 40
 
-BG           = (245, 242, 235)   # warm off-white paper
+BG           = (245, 242, 235)
 PANEL        = (255, 253, 248)
-INK          = ( 32,  32,  38)   # near-black ink
+INK          = ( 32,  32,  38)
 INK_SOFT     = ( 90,  90,  98)
-RULE         = (210, 205, 195)   # hairline rule color
+RULE         = (210, 205, 195)
 GRID_COL     = ( 60,  60,  70)
-X_COL        = (200,  60,  55)   # muted vermilion
-O_COL        = ( 30,  90, 160)   # deep ink blue
-ACCENT       = (170, 130,  60)   # antique gold
+X_COL        = (200,  60,  55)
+O_COL        = ( 30,  90, 160)
+ACCENT       = (170, 130,  60)
 BTN_MAIN     = (255, 253, 248)
 BTN_HOVER    = (240, 235, 222)
 BTN_BORDER   = ( 32,  32,  38)
@@ -59,7 +59,7 @@ HOME_NUM     = pygame.font.SysFont(SERIF_STACK, 26, italic=True)
 HOME_META    = pygame.font.SysFont(SANS_STACK,  11)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Tic Tac Toe")
+pygame.display.set_caption("Tic-Tac-Toe")
 clock  = pygame.time.Clock()
 
 # GAME STATE REPRESENTATION
@@ -70,9 +70,12 @@ WINS = [
     (0,4,8),(2,4,6)            # diagonals
 ]
 
+# Clears board
 def empty_board():
     return [None]*9
 
+# Loop unpacks each triple into three indices (a,b,c) checks if
+# their position is in WINS
 def check_winner(board):
     """Return 'X', 'O', or None."""
     for a,b,c in WINS:
@@ -80,49 +83,56 @@ def check_winner(board):
             return board[a]
     return None
 
+# If the board tied
 def is_draw(board):
     return None not in board and check_winner(board) is None
 
+# returns the indices of empty cells so ai can know open positions
 def available(board):
     return [i for i,v in enumerate(board) if v is None]
 
-# HEURISTIC EVALUATION (Easy Mode)
+# HEURISTIC RULES BASED EVALUATION (Easy Mode)
 # Priority: win > center > corner > edge
 def heuristic_move(board, ai_mark, human_mark):
     moves = available(board)
 
     # 1) Win immediately
     for m in moves:
+        # copy of board so ai can replicate the move
         b = board[:]
         b[m] = ai_mark
         if check_winner(b) == ai_mark:
             return m
     
     # 2) Prefer center
+    # 4 is the middle of the board in terms of positional reference
     if 4 in moves:
         return 4
 
     # 3) Prefer corners
+    # 0,2,6,8 are the corners of the board in terms of positional reference
     for c in [0,2,6,8]:
         if c in moves:
             return c
 
     # 4) Prefer edges
+    # 1,3,5,7 are the edges of the board in terms of positional reference from the center
     for e in [1,3,5,7]:
         if e in moves:
             return e
 
+    # fallback
     return moves[0]
 
 # MINIMAX ALGORITHM (Hard Mode)
 def minimax(board, is_maximizing, ai_mark, human_mark):
     winner = check_winner(board)
     if winner == ai_mark:
-        return  1
+        return 1
     if winner == human_mark:
         return -1
     if is_draw(board):
-        return  0
+        return 0
 
     if is_maximizing:
         best = -math.inf
@@ -536,8 +546,8 @@ def main_menu():
         title = HOME_TITLE.render("Tic-Tac-Toe", True, INK)
         screen.blit(title, (WIDTH//2 - title.get_width()//2, 78))
 
-        # ── Italic subtitle ──
-        sub_txt = "an adversarial-search project"
+        # ── Italic subtitle (removed for now) ──
+        sub_txt = ""
         sub = HOME_SUB.render(sub_txt, True, INK_SOFT)
         screen.blit(sub, (WIDTH//2 - sub.get_width()//2, 78 + title.get_height() + 2))
 
