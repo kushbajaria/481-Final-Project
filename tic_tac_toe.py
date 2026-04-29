@@ -134,67 +134,91 @@ def minimax(board, is_maximizing, ai_mark, human_mark):
     if is_draw(board):
         return 0
 
+    # AIs turn
     if is_maximizing:
         best = -math.inf
         for m in available(board):
+            # copy of board so ai can replicate the move
             b = board[:]
+            # try this move (m)
             b[m] = ai_mark
             best = max(best, minimax(b, False, ai_mark, human_mark))
         return best
+    # User's turn (takes worst outcome for ai since user is assumed to play optimally)
     else:
         best = math.inf
         for m in available(board):
+            # copy of board so ai can replicate the move
             b = board[:]
             b[m] = human_mark
             best = min(best, minimax(b, True, ai_mark, human_mark))
+        # takes users best score (worse for ai)
         return best
 
 def best_move_minimax(board, ai_mark, human_mark):
+    # starts with worst possible score and no moves choosen
     best_val, best_m = -math.inf, None
     for m in available(board):
+        # copy of board so ai can replicate the move
         b = board[:]
         b[m] = ai_mark
         val = minimax(b, False, ai_mark, human_mark)
         if val > best_val:
             best_val, best_m = val, m
+    # loop above gets the position of the move that returned the highest score
+
+    # return the position with highest score
     return best_m
 
-# ALPHA-BETA PRUNING (Hard Mode Optimized)
+# MINIMAX WITH ALPHA-BETA PRUNING (Hard Mode Optimized)
 def minimax_ab(board, is_maximizing, ai_mark, human_mark, alpha, beta):
     winner = check_winner(board)
-    if winner == ai_mark:    return  1
-    if winner == human_mark: return -1
-    if is_draw(board):       return  0
+    if winner == ai_mark:
+        return  1
+    if winner == human_mark:
+        return -1
+    if is_draw(board):
+        return  0
 
     if is_maximizing:
         best = -math.inf
         for m in available(board):
+            # copy of board so ai can replicate the move
             b = board[:]
             b[m] = ai_mark
             best = max(best, minimax_ab(b, False, ai_mark, human_mark, alpha, beta))
             alpha = max(alpha, best)
+            # minimizer already has a path elsewhere that's better than anything this branch
+            # can offer, so the remaining moves are skipped.
             if beta <= alpha:           # Prune
                 break
         return best
     else:
         best = math.inf
         for m in available(board):
+            # copy of board so ai can replicate the move
             b = board[:]
             b[m] = human_mark
             best = min(best, minimax_ab(b, True, ai_mark, human_mark, alpha, beta))
             beta = min(beta, best)
+            # maximizer already has a guaranteed path that's better than this branch can deliver, prune it.
             if beta <= alpha:           # Prune
                 break
         return best
 
 def best_move_ab(board, ai_mark, human_mark):
+    # starts with worst possible score and no moves choosen
     best_val, best_m = -math.inf, None
     for m in available(board):
+        # copy of board so ai can replicate the move
         b = board[:]
         b[m] = ai_mark
         val = minimax_ab(b, False, ai_mark, human_mark, -math.inf, math.inf)
         if val > best_val:
             best_val, best_m = val, m
+    # loop above gets the position of the move that returned the highest score
+
+    # return the position with highest score
     return best_m
 
 # DRAWING HELPERS
