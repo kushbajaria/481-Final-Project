@@ -308,9 +308,9 @@ def draw_popup(hover_idx):
     screen.blit(title, (px+(pw-title.get_width())//2, py+18))
 
     options = [
-        ("EASY  vs  EASY",               EASY_COL),
-        ("EASY (X)  vs  HARD (O)",       INK),
-        ("HARD (X)  vs  EASY (O)",       INK),
+        ("EASY  vs  EASY (Heuristic)",               EASY_COL),
+        ("EASY (Heuristic)  vs  HARD (Alpha-Beta)",       INK),
+        ("HARD (Alpha-Beta)  vs  EASY (Heuristic)",       INK),
         ("HARD  vs  HARD  (Minimax)",    HARD_COL),
         ("HARD  vs  HARD  (Alpha-Beta)", HARD_COL),
     ]
@@ -340,15 +340,15 @@ def run_ai_vs_ai(mode):
     if mode == 'ee':
         def move_x(b): return heuristic_move(b,'X','O')
         def move_o(b): return heuristic_move(b,'O','X')
-        label = "EASY vs EASY"
+        label = "EASY vs EASY (Heuristic)"
     elif mode == 'eh':
         def move_x(b): return heuristic_move(b,'X','O')
         def move_o(b): return best_move_ab(b,'O','X')
-        label = "EASY (X) vs HARD (O)"
+        label = "EASY (Heuristic) vs HARD (Alpha-Beta)"
     elif mode == 'he':
         def move_x(b): return best_move_ab(b,'X','O')
         def move_o(b): return heuristic_move(b,'O','X')
-        label = "HARD (X) vs EASY (O)"
+        label = "HARD (Alpha-Beta) vs EASY (Heuristic)"
     elif mode == 'hh_mm':
         def move_x(b): return best_move_minimax(b,'X','O')
         def move_o(b): return best_move_minimax(b,'O','X')
